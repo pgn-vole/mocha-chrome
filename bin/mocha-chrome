@@ -62,10 +62,9 @@ if (!/^(file|http(s?)):\/\//.test(file)) {
   url = 'file://' + fs.realpathSync(file);
 }
 
-const useColors = !flags.colors;
-const mocha = Object.assign(JSON.parse(flags.mocha || '{}'), { useColors });
+const {logLevel, ignoreExceptions, ignoreConsole, ignoreResourceErrors, colors, reporter} = flags;
+const mocha = Object.assign(JSON.parse(flags.mocha || '{}'), {useColors: !colors, reporter});
 const chromeFlags = JSON.parse(flags.chromeFlags || '[]');
-const { logLevel, ignoreExceptions, ignoreConsole, ignoreResourceErrors } = flags;
 const options = {
   chromeFlags,
   ignoreExceptions,
@@ -73,7 +72,7 @@ const options = {
   ignoreResourceErrors,
   logLevel,
   mocha,
-  url
+  url,
 };
 const runner = new MochaChrome(options);
 
@@ -90,5 +89,5 @@ runner.on('exit', () => process.exit(code));
 runner
   .connect()
   .then(()=> {
-    runner.run(runner);
+    runner.run();
   });

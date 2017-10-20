@@ -34,35 +34,25 @@ class MochaChrome {
     log.setDefaultLevel('error');
     log.setLevel(options.logLevel);
 
-    const bus = new EventBus(log);
-
     if (!options.url) {
       this.fail('`options.url` must be specified to run tests');
     }
 
-    bus.on('ready', content => {
-      this.client.Runtime.evaluate({ expression: `mocha.setup({ reporter: 'spec' })`});
-    });
+    this.options = options;
+    this.loadError = false;
+    this.bus = new EventBus(log);
+    this.listenBus();
+  }
 
-    bus.on('mocha', content => {
-      process.stdout.write(content);
-    });
-
-    bus.on('width', content => {
+  listenBus (){
+    this.bus.on('width', content => {
       const columns = parseInt(process.env.COLUMNS || process.stdout.columns) * .75 | 0;
       const expression = `Mocha.reporters.Base.window.width = ${columns};`;
 
       this.client.Runtime.evaluate({ expression });
     });
 
-    bus.on('config', content => {
-      const config = JSON.stringify(options.mocha);
-      const expression = `mocha.setup(${config})`;
-
-      this.client.Runtime.evaluate({ expression });
-    });
-
-    bus.on('started', (tests) => {
+    this.bus.on('started', (tests) => {
       this.started = true;
       log.info(`Test Run Started - Running ${tests} Tests\n`);
 
@@ -72,18 +62,14 @@ class MochaChrome {
 
     });
 
-    bus.on('ended', stats => {
+    this.bus.on('ended', stats => {
       this.ended = true;
       this.exit(stats.failures);
     });
 
-    bus.on('resourceFailed', data => {
+    this.bus.on('resourceFailed', data => {
       this.loadError = true;
     });
-
-    this.bus = bus;
-    this.options = options;
-    this.loadError = false;
   }
 
   connect () {
@@ -130,22 +116,22 @@ class MochaChrome {
         }
 
         const expression = '(function () { return !!window.mocha; })()';
-        this.client.Runtime.evaluate({ expression }).then((res)=>{
-          if (!unmirror(res.result)) {
-            this.fail(`mocha was not found in the page within ${this.options.loadTimeout}ms of the page loading.`);
-          }
+        this.client.Runtime.evaluate({expression})
+          .then((res) => {
+            if (!unmirror(res.result)) {
+              this.fail(`mocha was not found in the page within ${this.options.loadTimeout}ms of the page loading.`);
+            }
 
-          if (!this.started) {
-            this.fail(`mocha.run() was not called within ${this.options.loadTimeout}ms of the page loading.`);
-          }
-        });
-
+            if (!this.started) {
+              this.fail(`mocha.run() was not called within ${this.options.loadTimeout}ms of the page loading.`);
+            }
+          })
 
       }, this.options.loadTimeout);
 
     });
 
-    return this.client.Page.navigate({ url: this.options.url });
+    return this.client.Page.navigate({url: this.options.url})
   }
 
   on (name, fn) {
@@ -169,10 +155,7 @@ class MochaChrome {
     }).then(() => {
       this.bus.emit('exit', 1);
     });
-
-
   }
-
 }
 
 

@@ -9,16 +9,6 @@
       shimMocha(m);
       delete window.mocha;
       window.mocha = m;
-
-      // mochaOptions is injected in lib/client.js
-
-      mochaOptions = mochaOptions || {
-        ui: 'bdd',
-        reporter: 'spec',
-        useColors: true
-      };
-
-      mocha.setup(mochaOptions);
     },
     configurable: true
   });
@@ -45,15 +35,13 @@
   });
 
   function shimMocha (m) {
-    var origRun = m.run, origUi = m.ui;
+    var origRun = m.run;
 
-    m.ui = function () {
-      var retval = origUi.apply(mocha, arguments);
-      m.reporter = () => {};
-      return retval;
-    };
     m.run = function () {
       window._eventbus.emit('started', m.suite.suites.length);
+
+      // mochaOptions is injected when starting chrome in instance.js
+      m.setup(window.mochaOptions)
 
       m.runner = origRun.apply(mocha, arguments);
       if (m.runner.stats && m.runner.stats.end) {
